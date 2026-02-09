@@ -64,6 +64,9 @@ jobs:
           python app/app.py &
           sleep 20
 
+      - name: Fix workspace permissions
+        run: chmod -R 777 .
+
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.10.0
         with:
