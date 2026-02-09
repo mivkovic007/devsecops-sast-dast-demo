@@ -69,3 +69,10 @@ jobs:
           target: "http://127.0.0.1:5000"
           report_name: "zap_report.html"
           fail_action: false
+
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v3
+        with:
+          name: zap_report
+          path: zap_report.html
+
