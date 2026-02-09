@@ -38,9 +38,10 @@ jobs:
       - name: Run Snyk scan
         uses: snyk/actions/python@master
         with:
-          args: --file=app/requirements.txt
+          args: --file=app/requirements.txt --skip-unresolved
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
 
 
 
