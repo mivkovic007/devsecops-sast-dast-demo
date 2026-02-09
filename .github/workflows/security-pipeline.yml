@@ -21,8 +21,7 @@ jobs:
         uses: returntocorp/semgrep-action@v1
         with:
           config: "p/owasp-top-ten"
-          args: "--include=${{ matrix.app-folder }}"
-
+          args: "--include ${{ matrix.app-folder }}"
 
   # 2. Dependency scan (Snyk) za oba appa
   dependency-scan:
@@ -38,7 +37,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: "3.11"
 
       - name: Install dependencies
         run: pip install -r ${{ matrix.app-folder }}/requirements.txt
@@ -61,7 +60,6 @@ jobs:
             port: 5000
           - app-folder: app-secure
             port: 5001
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
