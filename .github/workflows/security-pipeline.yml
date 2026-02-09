@@ -6,10 +6,13 @@ on:
       - main
 
 jobs:
+  # 1. SAST scan za oba appa
   sast:
     name: SAST - Semgrep
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        app-folder: [app-vulnerable, app-secure]
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -18,11 +21,16 @@ jobs:
         uses: returntocorp/semgrep-action@v1
         with:
           config: "p/owasp-top-ten"
+          # pokreće se u folderu matrix.app-folder
+          working-directory: ${{ matrix.app-folder }}
 
+  # 2. Dependency scan (Snyk) za oba appa
   dependency-scan:
     name: Dependency Scan - Snyk
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        app-folder: [app-vulnerable, app-secure]
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -33,22 +41,19 @@ jobs:
           python-version: "3.9"
 
       - name: Install dependencies
-        run: pip install -r app/requirements.txt
+        run: pip install -r ${{ matrix.app-folder }}/requirements.txt
 
       - name: Run Snyk scan
         uses: snyk/actions/python@master
         with:
-          args: --file=app/requirements.txt --skip-unresolved
+          args: --file=${{ matrix.app-folder }}/requirements.txt --skip-unresolved
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-
-
-
+  # 3. DAST (OWASP ZAP) - pokreće samo za app-vulnerable
   dast-zap:
     name: DAST - OWASP ZAP
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -59,11 +64,11 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -r app/requirements.txt
+        run: pip install -r app-vulnerable/requirements.txt
 
       - name: Start vulnerable app
         run: |
-          python app/app.py &
+          python app-vulnerable/app.py &
           sleep 20
 
       - name: Fix workspace permissions
@@ -73,16 +78,14 @@ jobs:
         uses: zaproxy/action-baseline@v0.10.0
         with:
           target: "http://127.0.0.1:5000"
-          artifact_name: "zap_report"
+          artifact_name: "zap_report_vulnerable"
           fail_action: false
 
       - name: Upload ZAP report
         uses: actions/upload-artifact@v4
         with:
-          name: zap_report
+          name: zap_report_vulnerable
           path: |
             report_json.json
             report_md.md
             report_html.html
-
-
