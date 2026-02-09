@@ -22,7 +22,7 @@ jobs:
         uses: returntocorp/semgrep-action@v1
         with:
           config: "p/owasp-top-ten"
-          args: "${{ matrix.app-folder }}"  # folder koji se skenira
+          entryPoint: "${{ matrix.app-folder }}"  # folder koji se skenira
 
   # 2. Dependency scan (Snyk) za oba appa
   dependency-scan:
@@ -77,8 +77,9 @@ jobs:
 
       - name: Start app
         run: |
-          python ${{ matrix.app-folder }}/app.py &
-          sleep 20  # čekanje da se app podigne
+          timeout 60s python ${{ matrix.app-folder }}/app.py &
+          sleep 20
+
 
       - name: Fix workspace permissions
         run: chmod -R 777 .
