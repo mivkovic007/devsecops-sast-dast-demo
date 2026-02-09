@@ -38,7 +38,7 @@ jobs:
       - name: Run Snyk scan
         uses: snyk/actions/python@master
         with:
-          entryPoint: ./app
+          entryPoint: app
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
@@ -68,12 +68,16 @@ jobs:
         uses: zaproxy/action-baseline@v0.10.0
         with:
           target: "http://127.0.0.1:5000"
-          report_name: "zap_report.html"
+          artifact_name: "zap_report"
           fail_action: false
 
       - name: Upload ZAP report
         uses: actions/upload-artifact@v4
         with:
           name: zap_report
-          path: zap_report.html
+          path: |
+            report_json.json
+            report_md.md
+            report_html.html
+
 
