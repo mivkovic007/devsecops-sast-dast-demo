@@ -39,3 +39,37 @@ jobs:
         uses: snyk/actions/python@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  dast-zap:
+    name: DAST - OWASP ZAP
+    runs-on: ubuntu-latest
+
+    services:
+      vulnerable-app:
+        image: python:3.11
+        ports:
+          - 5000:5000
+        options: >-
+          --health-cmd "curl http://localhost:5000"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pip install flask
+
+      - name: Start vulnerable app
+        run: |
+          python app/app.py &
+          sleep 10
+
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.10.0
+        with:
+          target: "http://localhost:5000"
+          fail_action: false
