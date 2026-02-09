@@ -72,13 +72,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r ${{ matrix.app-folder }}/requirements.txt
 
-      - name: Start app
+      - name: Start app in background
         run: |
           python ${{ matrix.app-folder }}/app.py &
-          sleep 20
-
-      - name: Fix workspace permissions
-        run: chmod -R 777 .
+          APP_PID=$!
+          echo "App PID: $APP_PID"
+          sleep 30  # čekaj da server starta
 
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.10.0
@@ -86,6 +85,11 @@ jobs:
           target: "http://127.0.0.1:${{ matrix.port }}"
           artifact_name: "zap_report_${{ matrix.app-folder }}"
           fail_action: false
+
+      - name: Stop Flask app
+        run: |
+          echo "Stopping Flask app..."
+          kill $APP_PID || true
 
       - name: Upload ZAP report
         uses: actions/upload-artifact@v4
