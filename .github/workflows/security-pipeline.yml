@@ -35,12 +35,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r app/requirements.txt
 
-      - name: Run Snyk scan
+     - name: Run Snyk scan
         uses: snyk/actions/python@master
         with:
-          path: app
+          entryPoint: app
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
 
   dast-zap:
     name: DAST - OWASP ZAP
@@ -71,7 +72,7 @@ jobs:
           fail_action: false
 
       - name: Upload ZAP report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: zap_report
           path: zap_report.html
