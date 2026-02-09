@@ -20,7 +20,8 @@ jobs:
         uses: returntocorp/semgrep-action@v1
         with:
           config: "p/owasp-top-ten"
-          args: "--include ${{ matrix.app-folder }}"
+          entryPoint: "${{ matrix.app-folder }}"
+
 
   # 2. Dependency scan (Snyk) za oba appa
   dependency-scan:
