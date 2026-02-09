@@ -55,12 +55,12 @@ jobs:
     name: DAST - OWASP ZAP
     runs-on: ubuntu-latest
     strategy:
-    matrix:
-      include:
-        - app-folder: app-vulnerable
-          port: 5000
-        - app-folder: app-secure
-          port: 5001
+      matrix:
+        include:
+          - app-folder: app-vulnerable
+            port: 5000
+          - app-folder: app-secure
+            port: 5001
 
     steps:
       - name: Checkout code
