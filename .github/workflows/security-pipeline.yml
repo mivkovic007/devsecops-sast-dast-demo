@@ -42,9 +42,6 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-
-
-
   dast-zap:
     name: DAST - OWASP ZAP
     runs-on: ubuntu-latest
@@ -63,10 +60,15 @@ jobs:
 
       - name: Start vulnerable app
         run: |
-          python app/app.py &
-          sleep 20
-      - name: Fix workspace permissions
-        run: chmod -R 777 .
+          nohup python app/app.py > app.log 2>&1 &
+          echo "Waiting for app to start..."
+          for i in {1..30}; do
+            curl -s http://127.0.0.1:5001 && break
+            sleep 2
+          done
+
+      - name: Verify app is running
+        run: curl -v http://127.0.0.1:5001
 
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.10.0
@@ -83,3 +85,4 @@ jobs:
             report_json.json
             report_md.md
             report_html.html
+
