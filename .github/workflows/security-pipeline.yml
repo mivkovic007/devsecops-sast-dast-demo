@@ -51,7 +51,7 @@ jobs:
         run: pip install -r ${{ matrix.app-folder }}/requirements.txt
 
       - name: Run Snyk scan
-        uses: snyk/actions/python@v3
+        uses: snyk/actions/python@v1
         continue-on-error: true
         with:
           args: --file=${{ matrix.app-folder }}/requirements.txt --skip-unresolved
