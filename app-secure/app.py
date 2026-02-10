@@ -1,28 +1,30 @@
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template
 import sqlite3
 
 app = Flask(__name__)
 
 @app.route("/")
 def index():
-    return "DevSecOps secure app"
+    return render_template("index.html")
 
 @app.route("/user")
 def get_user():
-    username = request.args.get("username")
+    username = request.args.get("username", "")
 
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+
+    # Parameterized query (NO SQL injection)
+    cursor.execute("SELECT username FROM users WHERE username = ?", (username,))
     result = cursor.fetchall()
     conn.close()
 
-    return str(result)
+    return render_template("user.html", result=result)
 
 @app.route("/search")
 def search():
     query = request.args.get("q", "")
-    return render_template_string("Search results for: {{ query }}", query=query)
+    return render_template("search.html", query=query)
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5001)

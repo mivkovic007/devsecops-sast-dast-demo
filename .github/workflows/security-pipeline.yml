@@ -7,110 +7,130 @@ on:
 
 jobs:
 
-  # ===============================
-  # 1️⃣ SAST - Semgrep
-  # ===============================
-  sast:
-    name: SAST - Semgrep
-    runs-on: ubuntu-latest
+# ===============================
+# SAST
+# ===============================
 
-    strategy:
-      matrix:
-        app-folder: [app-vulnerable, app-secure]
+  sast-vulnerable:
+    runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: Run Semgrep SAST scan
+      - uses: actions/checkout@v4
+      - name: Semgrep scan - vulnerable
         uses: returntocorp/semgrep-action@v1
-        continue-on-error: true
         with:
           config: "p/owasp-top-ten"
-        env:
-          SEMGREP_SCAN_DIR: ${{ matrix.app-folder }}
+          include: app-vulnerable
 
-
-  # ===============================
-  # 2️⃣ Dependency Scan - Snyk
-  # ===============================
-  dependency-scan:
-    name: Dependency Scan - Snyk
+  sast-secure:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        app-folder: [app-vulnerable, app-secure]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep scan - secure
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: "p/owasp-top-ten"
+          include: app-secure
+
+
+# ===============================
+# SNYK
+# ===============================
+
+  snyk-vulnerable:
+    runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install -r ${{ matrix.app-folder }}/requirements.txt
+      - name: Install minimal deps (ignore conflict)
+        run: |
+          pip install Flask==2.3.3
 
-      - name: Run Snyk scan
+      - name: Snyk scan vulnerable
         uses: snyk/actions/python@v1
-        continue-on-error: true
         with:
-          args: --file=${{ matrix.app-folder }}/requirements.txt --skip-unresolved
+          args: --file=app-vulnerable/requirements.txt --skip-unresolved
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  snyk-secure:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r app-secure/requirements.txt
+
+      - name: Snyk scan secure
+        uses: snyk/actions/python@v1
+        with:
+          args: --file=app-secure/requirements.txt --skip-unresolved
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
 
-  # ===============================
-  # 3️⃣ DAST - OWASP ZAP
-  # ===============================
-  dast:
-    name: DAST - OWASP ZAP
-    runs-on: ubuntu-latest
+# ===============================
+# DAST
+# ===============================
 
-    strategy:
-      matrix:
-        include:
-          - app-folder: app-vulnerable
-            port: 5000
-          - app-folder: app-secure
-            port: 5001
+  dast-vulnerable:
+    runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: |
-          pip install -r ${{ matrix.app-folder }}/requirements.txt
-          pip install gunicorn
+      - run: pip install Flask==2.3.3 gunicorn
 
-      - name: Start app with Gunicorn (daemon mode)
+      - name: Start vulnerable app
         run: |
-          cd ${{ matrix.app-folder }}
-          gunicorn -b 127.0.0.1:${{ matrix.port }} app:app --daemon
-          sleep 10
+          cd app-vulnerable
+          nohup gunicorn -b 127.0.0.1:5000 app:app > server.log 2>&1 &
+          sleep 5
 
-      - name: Run OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.10.0
-        timeout-minutes: 10
+      - uses: zaproxy/action-baseline@v0.10.0
         with:
-          target: "http://127.0.0.1:${{ matrix.port }}"
-          artifact_name: "zap_report_${{ matrix.app-folder }}"
+          target: "http://127.0.0.1:5000"
           fail_action: false
 
-      - name: Upload ZAP report
-        uses: actions/upload-artifact@v4
+      - run: pkill gunicorn || true
+
+
+  dast-secure:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
         with:
-          name: "zap_report_${{ matrix.app-folder }}"
-          path: |
-            report_json.json
-            report_md.md
-            report_html.html
+          python-version: "3.11"
+
+      - run: |
+          pip install -r app-secure/requirements.txt
+          pip install gunicorn
+
+      - name: Start secure app
+        run: |
+          cd app-secure
+          nohup gunicorn -b 127.0.0.1:5001 app:app > server.log 2>&1 &
+          sleep 5
+
+      - uses: zaproxy/action-baseline@v0.10.0
+        with:
+          target: "http://127.0.0.1:5001"
+          fail_action: false
+
+      - run: pkill gunicorn || true
