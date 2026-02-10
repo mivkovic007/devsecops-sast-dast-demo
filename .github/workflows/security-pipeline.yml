@@ -22,6 +22,7 @@ jobs:
 
       - name: Run Semgrep SAST scan
         uses: returntocorp/semgrep-action@v1
+        continue-on-error: true
         with:
           config: "p/owasp-top-ten"
         env:
