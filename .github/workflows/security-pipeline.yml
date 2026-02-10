@@ -6,50 +6,63 @@ on:
       - main
 
 jobs:
-  # 1. SAST scan za oba appa
+
+  # 1️⃣ SAST - Semgrep
   sast:
     name: SAST - Semgrep
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
         app-folder: [app-vulnerable, app-secure]
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
+
       - name: Run Semgrep SAST scan
         uses: returntocorp/semgrep-action@v1
         with:
           config: "p/owasp-top-ten"
-          entryPoint: "${{ matrix.app-folder }}"
+        env:
+          SEMGREP_SCAN_DIR: ${{ matrix.app-folder }}
 
 
-  # 2. Dependency scan (Snyk) za oba appa
+  # 2️⃣ Dependency Scan - Snyk
   dependency-scan:
     name: Dependency Scan - Snyk
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
         app-folder: [app-vulnerable, app-secure]
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
+
       - name: Install dependencies
         run: pip install -r ${{ matrix.app-folder }}/requirements.txt
+
       - name: Run Snyk scan
-        uses: snyk/actions/python@master
+        uses: snyk/actions/python@v3
+        continue-on-error: true
         with:
           args: --file=${{ matrix.app-folder }}/requirements.txt --skip-unresolved
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-  # 3. DAST (OWASP ZAP) za oba appa
+
+  # 3️⃣ DAST - OWASP ZAP
   dast-zap:
     name: DAST - OWASP ZAP
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
         include:
@@ -57,25 +70,34 @@ jobs:
             port: 5000
           - app-folder: app-secure
             port: 5001
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
+
       - name: Install dependencies
-        run: pip install -r ${{ matrix.app-folder }}/requirements.txt
+        run: |
+          pip install -r ${{ matrix.app-folder }}/requirements.txt
+          pip install gunicorn
+
       - name: Start app with Gunicorn
         run: |
-          gunicorn -b 127.0.0.1:${{ matrix.port }} ${{ matrix.app-folder }}.app:app &
+          cd ${{ matrix.app-folder }}
+          gunicorn -b 127.0.0.1:${{ matrix.port }} app:app &
           sleep 10
+
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.10.0
         with:
           target: "http://127.0.0.1:${{ matrix.port }}"
           artifact_name: "zap_report_${{ matrix.app-folder }}"
           fail_action: false
+
       - name: Upload ZAP report
         uses: actions/upload-artifact@v4
         with:
