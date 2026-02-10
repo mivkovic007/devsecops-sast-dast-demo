@@ -6,6 +6,9 @@ on:
       - main
 
 jobs:
+  # -----------------------
+  # SAST - Semgrep
+  # -----------------------
   sast:
     name: SAST - Semgrep
     runs-on: ubuntu-latest
@@ -18,6 +21,9 @@ jobs:
         with:
           config: "p/owasp-top-ten"
 
+  # -----------------------
+  # Dependency Scan - Snyk
+  # -----------------------
   dependency-scan:
     name: Dependency Scan - Snyk
     runs-on: ubuntu-latest
@@ -40,6 +46,9 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
+  # -----------------------
+  # DAST - OWASP ZAP
+  # -----------------------
   dast-zap:
     name: DAST - OWASP ZAP
     runs-on: ubuntu-latest
@@ -67,10 +76,14 @@ jobs:
       - name: Verify app is running
         run: curl -v http://127.0.0.1:5001
 
+      - name: Make workspace writable for ZAP
+        run: chmod -R a+w $GITHUB_WORKSPACE
+
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.10.0
         with:
           target: "http://host.docker.internal:5001"
+          output_dir: "/tmp/zap"
           artifact_name: "zap_report"
           fail_action: false
           allow_issue_writing: true
@@ -80,6 +93,6 @@ jobs:
         with:
           name: zap_report
           path: |
-            report_json.json
-            report_md.md
-            report_html.html
+            /tmp/zap/report_json.json
+            /tmp/zap/report_md.md
+            /tmp/zap/report_html.html
