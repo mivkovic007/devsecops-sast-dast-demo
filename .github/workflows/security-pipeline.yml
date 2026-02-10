@@ -6,131 +6,80 @@ on:
       - main
 
 jobs:
-
-# ===============================
-# SAST
-# ===============================
-
-  sast-vulnerable:
+  sast:
+    name: SAST - Semgrep
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v4
-      - name: Semgrep scan - vulnerable
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Run Semgrep SAST scan
         uses: returntocorp/semgrep-action@v1
         with:
           config: "p/owasp-top-ten"
-          include: app-vulnerable
 
-  sast-secure:
+  dependency-scan:
+    name: Dependency Scan - Snyk
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      - name: Semgrep scan - secure
-        uses: returntocorp/semgrep-action@v1
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          config: "p/owasp-top-ten"
-          include: app-secure
+          python-version: "3.9"
 
+      - name: Install dependencies
+        run: pip install -r app/requirements.txt
 
-# ===============================
-# SNYK
-# ===============================
-
-  snyk-vulnerable:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - name: Run Snyk scan
+        uses: snyk/actions/python@master
         with:
-          python-version: "3.11"
-
-      - name: Install minimal deps (ignore conflict)
-        run: |
-          pip install Flask==2.3.3
-
-      - name: Snyk scan vulnerable
-        uses: snyk/actions/python@v1
-        with:
-          args: --file=app-vulnerable/requirements.txt --skip-unresolved
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-  snyk-secure:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-
-      - run: pip install -r app-secure/requirements.txt
-
-      - name: Snyk scan secure
-        uses: snyk/actions/python@v1
-        with:
-          args: --file=app-secure/requirements.txt --skip-unresolved
+          args: --file=app/requirements.txt --skip-unresolved
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
 
-# ===============================
-# DAST
-# ===============================
 
-  dast-vulnerable:
+
+  dast-zap:
+    name: DAST - OWASP ZAP
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - run: pip install Flask==2.3.3 gunicorn
+      - name: Install dependencies
+        run: pip install -r app/requirements.txt
 
       - name: Start vulnerable app
         run: |
-          cd app-vulnerable
-          nohup gunicorn -b 127.0.0.1:5000 app:app > server.log 2>&1 &
-          sleep 5
+          python app/app.py &
+          sleep 20
+      - name: Fix workspace permissions
+        run: chmod -R 777 .
 
-      - uses: zaproxy/action-baseline@v0.10.0
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.10.0
         with:
           target: "http://127.0.0.1:5000"
+          artifact_name: "zap_report"
           fail_action: false
 
-      - run: pkill gunicorn || true
-
-
-  dast-secure:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v4
         with:
-          python-version: "3.11"
-
-      - run: |
-          pip install -r app-secure/requirements.txt
-          pip install gunicorn
-
-      - name: Start secure app
-        run: |
-          cd app-secure
-          nohup gunicorn -b 127.0.0.1:5001 app:app > server.log 2>&1 &
-          sleep 5
-
-      - uses: zaproxy/action-baseline@v0.10.0
-        with:
-          target: "http://127.0.0.1:5001"
-          fail_action: false
-
-      - run: pkill gunicorn || true
+          name: zap_report
+          path: |
+            report_json.json
+            report_md.md
+            report_html.html
