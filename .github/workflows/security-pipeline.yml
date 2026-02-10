@@ -7,7 +7,9 @@ on:
 
 jobs:
 
+  # ===============================
   # 1️⃣ SAST - Semgrep
+  # ===============================
   sast:
     name: SAST - Semgrep
     runs-on: ubuntu-latest
@@ -18,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Run Semgrep SAST scan
         uses: returntocorp/semgrep-action@v1
@@ -29,7 +31,9 @@ jobs:
           SEMGREP_SCAN_DIR: ${{ matrix.app-folder }}
 
 
+  # ===============================
   # 2️⃣ Dependency Scan - Snyk
+  # ===============================
   dependency-scan:
     name: Dependency Scan - Snyk
     runs-on: ubuntu-latest
@@ -40,7 +44,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -59,8 +63,10 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
 
+  # ===============================
   # 3️⃣ DAST - OWASP ZAP
-  dast-zap:
+  # ===============================
+  dast:
     name: DAST - OWASP ZAP
     runs-on: ubuntu-latest
 
@@ -73,8 +79,8 @@ jobs:
             port: 5001
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout source code
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -86,14 +92,15 @@ jobs:
           pip install -r ${{ matrix.app-folder }}/requirements.txt
           pip install gunicorn
 
-      - name: Start app with Gunicorn
+      - name: Start app with Gunicorn (daemon mode)
         run: |
           cd ${{ matrix.app-folder }}
-          gunicorn -b 127.0.0.1:${{ matrix.port }} app:app &
+          gunicorn -b 127.0.0.1:${{ matrix.port }} app:app --daemon
           sleep 10
 
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.10.0
+        timeout-minutes: 10
         with:
           target: "http://127.0.0.1:${{ matrix.port }}"
           artifact_name: "zap_report_${{ matrix.app-folder }}"
